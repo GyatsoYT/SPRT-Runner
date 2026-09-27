@@ -47,9 +47,18 @@ jobs:
 
       - name: Fetch OpenBench client
         run: |
-          # Pin this to your own fork/tag if you maintain one, so a client
-          # protocol change upstream can't silently break your fleet.
-          git clone --depth 1 https://github.com/AndyGrant/OpenBench.git ob-client
+          # Your own fork, pinned to master. Switch this to a specific tag/sha
+          # once things are stable so a future push to your fork can't silently
+          # break the whole fleet mid-run.
+          git clone --depth 1 https://github.com/GyatsoYT/GyatsoBench.git ob-client
+
+      - name: Locate client entrypoint
+        working-directory: ob-client
+        run: |
+          echo "---- repo root ----"
+          ls -la
+          echo "---- Client/ ----"
+          ls -la Client || true
 
       - name: Run OpenBench worker
         working-directory: ob-client/Client
@@ -58,7 +67,23 @@ jobs:
           OB_PASS: ${{ secrets.OB_PASSWORD }}
           OB_SERVER: ${{ secrets.OB_SERVER }}
         run: |
+          # Find the entrypoint regardless of casing, since this has moved
+          # between OpenBench versions (Client.py -> client.py).
+          ENTRY=$(ls client.py Client.py 2>/dev/null | head -n1)
+          if [ -z "$ENTRY" ]; then
+            echo "No client.py / Client.py found in Client/ — see the ls output"
+            echo "from the previous step and adjust working-directory above."
+            exit 1
+          fi
+          echo "Using entrypoint: $ENTRY"
+
+          echo "---- printing --help (so any wrong flag below is self-diagnosing) ----"
+          python3 "$ENTRY" --help || true
+
+          echo "---- launching worker ----"
           # -T = concurrent games this worker plays = core count of the
           # runner. Keep engine Threads=1 in your test config for standard
           # STC/LTC runs so this maps 1 game : 1 core with no oversubscription.
-          python3 Client.py -U "$OB_USER" -P "$OB_PASS" -S "$OB_SERVER" -T 4
+          # If this exact flag set is wrong, the --help output above has the
+          # real one — paste it back and this gets finalized in one shot.
+          python3 "$ENTRY" -U "$OB_USER" -P "$OB_PASS" -S "$OB_SERVER" -T 4
