@@ -57,10 +57,11 @@ jobs:
         run: |
           if [ -f requirements.txt ]; then
             pip3 install --break-system-packages -r requirements.txt
-          else
-            # Fallback if the requirements file ever moves/renames.
-            pip3 install --break-system-packages py-cpuinfo requests
           fi
+          # Always explicit, regardless of what requirements.txt does or doesn't
+          # list — worker.py hard-imports this and it's silently missing from
+          # your fork's requirements.txt right now.
+          pip3 install --break-system-packages py-cpuinfo requests
 
       - name: Locate client entrypoint
         working-directory: ob-client
