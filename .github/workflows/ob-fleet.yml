@@ -45,6 +45,21 @@ jobs:
           nim --version
           nimble --version
 
+      - name: Install Nim package dependencies
+        run: |
+          # Engines built via the OpenBench client get cloned into a fresh temp
+          # dir on every workload — we never touch that clone ourselves — so
+          # this has to install into the GLOBAL nimble cache (~/.nimble) ahead
+          # of time. That's why it works on Windows/MSYS2/your friend's Linux
+          # without anyone thinking about it: those machines already have
+          # nimsimd sitting in their nimble cache from some earlier install.
+          # A fresh GitHub Actions runner starts with an empty one every time.
+          nimble install -y nimsimd
+          # If GyatsoChess.nimble declares other `requires` beyond nimsimd,
+          # list them here too (or better: `nimble install -y` run against
+          # a checkout of the engine repo containing that .nimble file, which
+          # resolves everything it declares at once instead of one-by-one).
+
       - name: Fetch OpenBench client
         run: |
           # Your own fork, pinned to master. Switch this to a specific tag/sha
