@@ -50,7 +50,7 @@ jobs:
           # Your own fork, pinned to master. Switch this to a specific tag/sha
           # once things are stable so a future push to your fork can't silently
           # break the whole fleet mid-run.
-          git clone --depth 1 https://github.com/GyatsoYT/GyatsoBench.git ob-client
+          git clone https://github.com/GyatsoYT/GyatsoBench.git ob-client
 
       - name: Install client Python requirements
         working-directory: ob-client
