@@ -91,9 +91,11 @@ jobs:
           fi
           echo "Using entrypoint: $ENTRY"
 
-          # -T/-N are NOT in this fork's documented --help (only -U/-P/-S/
-          # --clean/--no-client-downloads exist). Leaving them off until
-          # confirmed otherwise — passing unrecognized flags either gets
-          # rejected outright or silently ignored, neither of which you want
-          # long-term if you're trying to control concurrency deliberately.
-          python3 -u "$ENTRY" -U "$OB_USER" -P "$OB_PASS" -S "$OB_SERVER" -T 4 -N 1
+          # --no-client-downloads: every job already does a fresh git clone of
+          # the fork, so the client's self-update-and-restart mechanism (which
+          # is what was looping on "Downloading newer version of Client...")
+          # can never help here — it can only get stuck if the server's
+          # declared client_version doesn't match what's actually on master.
+          # Since we're always starting from current code anyway, just disable
+          # the self-update path entirely rather than chasing version drift.
+          python3 -u "$ENTRY" -U "$OB_USER" -P "$OB_PASS" -S "$OB_SERVER" -T 4 -N 1 --no-client-downloads
