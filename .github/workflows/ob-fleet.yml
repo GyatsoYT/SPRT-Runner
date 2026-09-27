@@ -88,4 +88,4 @@ jobs:
 
           # No -T here: this client version auto-detects core count via
           # py-cpuinfo instead of taking a manual concurrency flag.
-          python3 "$ENTRY" -U "$OB_USER" -P "$OB_PASS" -S "$OB_SERVER"
+          python3 "$ENTRY" -U "$OB_USER" -P "$OB_PASS" -S "$OB_SERVER" -T 4 -N 1
