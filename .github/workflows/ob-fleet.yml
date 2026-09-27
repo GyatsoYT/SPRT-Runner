@@ -77,6 +77,11 @@ jobs:
           OB_USER: ${{ secrets.OB_USERNAME }}
           OB_PASS: ${{ secrets.OB_PASSWORD }}
           OB_SERVER: ${{ secrets.OB_SERVER }}
+          # Force Python to flush output immediately instead of block-buffering
+          # it (the default whenever stdout isn't a real terminal — i.e. always
+          # in CI). Without this, real progress can sit invisible in a buffer
+          # for minutes and look identical to "hung" even when it isn't.
+          PYTHONUNBUFFERED: "1"
         run: |
           ENTRY=$(ls client.py Client.py 2>/dev/null | head -n1)
           if [ -z "$ENTRY" ]; then
@@ -86,6 +91,9 @@ jobs:
           fi
           echo "Using entrypoint: $ENTRY"
 
-          # No -T here: this client version auto-detects core count via
-          # py-cpuinfo instead of taking a manual concurrency flag.
-          python3 "$ENTRY" -U "$OB_USER" -P "$OB_PASS" -S "$OB_SERVER" -T 4 -N 1
+          # -T/-N are NOT in this fork's documented --help (only -U/-P/-S/
+          # --clean/--no-client-downloads exist). Leaving them off until
+          # confirmed otherwise — passing unrecognized flags either gets
+          # rejected outright or silently ignored, neither of which you want
+          # long-term if you're trying to control concurrency deliberately.
+          python3 -u "$ENTRY" -U "$OB_USER" -P "$OB_PASS" -S "$OB_SERVER" -T 4 -N 1
