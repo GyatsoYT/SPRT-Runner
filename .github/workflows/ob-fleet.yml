@@ -1,0 +1,64 @@
+name: OpenBench Fleet
+
+# Manual trigger for testing, plus a recurring cron so the fleet
+# relaunches itself before GitHub kills each job at the 6h hard cap.
+# Interval must be >= job timeout-minutes below, or you'll get overlapping
+# fleets fighting for the 20-job concurrency slot.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+# Prevents a stray manual dispatch from stacking on top of a cron-triggered
+# fleet that's already running.
+concurrency:
+  group: ob-fleet
+  cancel-in-progress: false
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    # Stay safely under GitHub's 360-minute hard limit so the client
+    # exits somewhat gracefully instead of being SIGKILLed mid-step.
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        # One entry per worker. GitHub's free-tier concurrency cap is 20
+        # jobs account-wide, so this matrix alone uses the whole budget —
+        # no need to split this across multiple repos.
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+
+    steps:
+      - name: Install build toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip git curl
+
+      - name: Install Nim
+        run: |
+          curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y
+          echo "$HOME/.nimble/bin" >> "$GITHUB_PATH"
+
+      - name: Verify Nim toolchain
+        run: |
+          nim --version
+          nimble --version
+
+      - name: Fetch OpenBench client
+        run: |
+          # Pin this to your own fork/tag if you maintain one, so a client
+          # protocol change upstream can't silently break your fleet.
+          git clone --depth 1 https://github.com/AndyGrant/OpenBench.git ob-client
+
+      - name: Run OpenBench worker
+        working-directory: ob-client/Client
+        env:
+          OB_USER: ${{ secrets.OB_USERNAME }}
+          OB_PASS: ${{ secrets.OB_PASSWORD }}
+          OB_SERVER: ${{ secrets.OB_SERVER }}
+        run: |
+          # -T = concurrent games this worker plays = core count of the
+          # runner. Keep engine Threads=1 in your test config for standard
+          # STC/LTC runs so this maps 1 game : 1 core with no oversubscription.
+          python3 Client.py -U "$OB_USER" -P "$OB_PASS" -S "$OB_SERVER" -T 4
