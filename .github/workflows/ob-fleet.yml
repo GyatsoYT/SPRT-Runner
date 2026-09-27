@@ -33,7 +33,7 @@ jobs:
       - name: Install build toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential python3 python3-pip git curl
+          sudo apt-get install -y build-essential python3 python3-pip git curl clang lld llvm
 
       - name: Install Nim
         run: |
@@ -52,6 +52,16 @@ jobs:
           # break the whole fleet mid-run.
           git clone --depth 1 https://github.com/GyatsoYT/GyatsoBench.git ob-client
 
+      - name: Install client Python requirements
+        working-directory: ob-client
+        run: |
+          if [ -f requirements.txt ]; then
+            pip3 install --break-system-packages -r requirements.txt
+          else
+            # Fallback if the requirements file ever moves/renames.
+            pip3 install --break-system-packages py-cpuinfo requests
+          fi
+
       - name: Locate client entrypoint
         working-directory: ob-client
         run: |
@@ -67,8 +77,6 @@ jobs:
           OB_PASS: ${{ secrets.OB_PASSWORD }}
           OB_SERVER: ${{ secrets.OB_SERVER }}
         run: |
-          # Find the entrypoint regardless of casing, since this has moved
-          # between OpenBench versions (Client.py -> client.py).
           ENTRY=$(ls client.py Client.py 2>/dev/null | head -n1)
           if [ -z "$ENTRY" ]; then
             echo "No client.py / Client.py found in Client/ — see the ls output"
@@ -77,13 +85,6 @@ jobs:
           fi
           echo "Using entrypoint: $ENTRY"
 
-          echo "---- printing --help (so any wrong flag below is self-diagnosing) ----"
-          python3 "$ENTRY" --help || true
-
-          echo "---- launching worker ----"
-          # -T = concurrent games this worker plays = core count of the
-          # runner. Keep engine Threads=1 in your test config for standard
-          # STC/LTC runs so this maps 1 game : 1 core with no oversubscription.
-          # If this exact flag set is wrong, the --help output above has the
-          # real one — paste it back and this gets finalized in one shot.
-          python3 "$ENTRY" -U "$OB_USER" -P "$OB_PASS" -S "$OB_SERVER" -T 4
+          # No -T here: this client version auto-detects core count via
+          # py-cpuinfo instead of taking a manual concurrency flag.
+          python3 "$ENTRY" -U "$OB_USER" -P "$OB_PASS" -S "$OB_SERVER"
